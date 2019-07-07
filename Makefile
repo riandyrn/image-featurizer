@@ -16,3 +16,5 @@ install:
 
 test:
 	curl -X POST http://localhost:8080/predictions/featurizer -T dog.jpg
+	curl -X POST http://localhost:8080/predictions/featurizer -T kitten.jpg
+	curl -X POST http://localhost:8080/predictions/featurizer -T kitten-2.jpg

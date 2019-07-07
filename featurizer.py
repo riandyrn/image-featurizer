@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 import mxnet as mx
 import numpy as np
@@ -35,56 +36,64 @@ def transform(input_image: mx.nd.NDArray) -> mx.nd.NDArray:
 
 class Featurizer(MXNetModelService):
 
-    def preprocess(self, batch):
+    def preprocess(self, batch: List):
         if len(batch) == 0:
             return None
 
-        # process only first image request
-        request: dict = batch[0]
+        result = []
+        for i in range(0, len(batch)):
+            # get request
+            request: dict = batch[i]
 
-        # try to get the image data from request
-        param_name = self.signature['inputs'][0]['data_name']
-        data = request.get(param_name)
-        if data is None:
-            data = request.get("body")
-        if data is None:
-            data = request.get("data")
+            # try to get the image data from request
+            param_name = self.signature['inputs'][0]['data_name']
+            data = request.get(param_name)
+            if data is None:
+                data = request.get("body")
+            if data is None:
+                data = request.get("data")
 
-        # if data still None, just return immediately
-        if data is None:
-            return None
+            # if data still None, just return immediately
+            if data is None:
+                return None
 
-        # convert image data (bytearray) to NDArray using
-        # utility function given by mxnet
-        img: mx.nd.NDArray = mx.image.imdecode(data)
+            # convert image data (bytearray) to NDArray using
+            # utility function given by mxnet
+            img: mx.nd.NDArray = mx.image.imdecode(data)
 
-        # transform the array to suitable format for neural
-        # network used for inference
-        img = transform(img)
+            # transform the array to suitable format for neural
+            # network used for inference
+            img = transform(img)
 
-        # contain the transformed data into list, this is
-        # specification from mxnet model server for preprocess()
-        return [img]
+            # append the transformed image to result
+            result.append(img)
 
-    def postprocess(self, inference_output: [mx.nd.NDArray]):
-        # convert to inference_output to probabilities
-        # using softmax() function
-        probabilities: mx.nd.NDArray = inference_output[0].softmax()
+        return result
 
-        # get top probabilities
-        top_probabilities = probabilities.topk(k=3)[0].asnumpy()
-
+    def postprocess(self, inference_output: List[mx.nd.NDArray]):
         # load categories
         categories = np.array(json.load(open('image_net_labels.json', 'r')))
 
-        # prepare result
         result = []
-        for index in top_probabilities:
-            result.append({
-                "category": categories[int(index)],
-                # we cannot access directly the value on mx.nd.NDArray,
-                # to do that we need to call .asscalar()
-                "probability": probabilities[0][int(index)].asscalar() * 100
-            })
+        for i in range(0, len(inference_output)):
+            # convert to inference_output to probabilities
+            # using softmax() function
+            probabilities: mx.nd.NDArray = inference_output[i].softmax()
 
-        return [result]
+            # get top probabilities
+            top_probabilities = probabilities.topk(k=3)[0].asnumpy()
+
+            # prepare result
+            predictions = []
+            for index in top_probabilities:
+                predictions.append({
+                    "category": categories[int(index)],
+                    # we cannot access directly the value on mx.nd.NDArray,
+                    # to do that we need to call .asscalar()
+                    "probability": probabilities[0][int(index)].asscalar() * 100
+                })
+
+            # append predictions to result
+            result.append(predictions)
+
+        return result
