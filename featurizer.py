@@ -1,4 +1,3 @@
-import json
 from typing import List
 
 import mxnet as mx
@@ -36,7 +35,7 @@ def transform(input_image: mx.nd.NDArray) -> mx.nd.NDArray:
 
 class Featurizer(MXNetModelService):
 
-    def preprocess(self, batch: List):
+    def preprocess(self, batch: List[dict]):
         if len(batch) == 0:
             return None
 
@@ -71,29 +70,14 @@ class Featurizer(MXNetModelService):
         return result
 
     def postprocess(self, inference_output: List[mx.nd.NDArray]):
-        # load categories
-        categories = np.array(json.load(open('image_net_labels.json', 'r')))
-
         result = []
         for i in range(0, len(inference_output)):
-            # convert to inference_output to probabilities
-            # using softmax() function
-            probabilities: mx.nd.NDArray = inference_output[i].softmax()
+            # each item in inference_output is the features so we take it
+            features = inference_output[i]
 
-            # get top probabilities
-            top_probabilities = probabilities.topk(k=3)[0].asnumpy()
-
-            # prepare result
-            predictions = []
-            for index in top_probabilities:
-                predictions.append({
-                    "category": categories[int(index)],
-                    # we cannot access directly the value on mx.nd.NDArray,
-                    # to do that we need to call .asscalar()
-                    "probability": probabilities[0][int(index)].asscalar() * 100
-                })
-
-            # append predictions to result
-            result.append(predictions)
+            # flatten the features so it is simpler to be calculated
+            # as vector, remember to convert the result to normal list
+            # as NDArray is non json serializable
+            result.append(features.asnumpy().flatten().tolist())
 
         return result

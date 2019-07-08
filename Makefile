@@ -1,6 +1,7 @@
 build:
 	-rm featurizer.mar
-	model-archiver --model-name featurizer --model-path . --handler featurizer:handle
+	make build-nets
+	model-archiver --model-name featurizer --model-path . --handler featurizer:handle --force
 	docker build -t image-featurizer .
 
 run:
@@ -16,5 +17,9 @@ install:
 
 test:
 	curl -X POST http://localhost:8080/predictions/featurizer -T dog.jpg
-	curl -X POST http://localhost:8080/predictions/featurizer -T kitten.jpg
-	curl -X POST http://localhost:8080/predictions/featurizer -T kitten-2.jpg
+	#curl -X POST http://localhost:8080/predictions/featurizer -T kitten.jpg
+	#curl -X POST http://localhost:8080/predictions/featurizer -T kitten-2.jpg
+
+# used to build the neural nets then export it to file
+build-nets:
+	venv/bin/python net_builder.py
